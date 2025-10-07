@@ -19,6 +19,6 @@ app.get('/app.json', async (_req, reply) => {
     const file = await readFile(path.resolve('src/app.json'), 'utf8');
     reply.type('application/json').send(JSON.parse(file));
 });
-app.listen({ port: config.port, host: '0.0.0.0' })
+app.listen({ port: config.port, host: config.host })
     .then(() => app.log.info(`Memo-IA API listening on :${config.port}`))
     .catch((err) => { app.log.error(err); process.exit(1); });

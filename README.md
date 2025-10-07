@@ -1,4 +1,4 @@
-# Mémo IA — API + MCP stub
+# Mémo IA — API + MCP
 
 ## Démarrage
 
@@ -10,7 +10,7 @@ echo "APP_BEARER_TOKEN=$(openssl rand -hex 24)" >> .env
 npm i
 npm run dev
 # API: http://localhost:8080
-# MCP stub: npm run mcp -> http://localhost:9090
+# MCP server: npm run mcp (voir section dédiée)
 ```
 
 ### Sanity check
@@ -20,6 +20,17 @@ curl -X POST http://localhost:8080/v1/notes \  -H "Authorization: Bearer $APP_BE
 
 ## Déploiement
 
-- Configurez les variables d'environnement : `PORT`, `HOST=0.0.0.0`, `APP_BEARER_TOKEN`, `DATABASE_URL=./data/memo.db`.
+- Configurez les variables d'environnement : `PORT`, `HOST=0.0.0.0`, `APP_BEARER_TOKEN`, `DATABASE_URL=./data/memo.db`, `MCP_HOST`, `MCP_PORT`.
 - Assurez-vous que le répertoire de la base existe (géré automatiquement par l'app).
 - Sur Railway, exposez `openapi.yaml` et `src/app.json` (manifeste Apps SDK) à ChatGPT une fois le domaine public disponible.
+
+## MCP (Model Context Protocol)
+
+```bash
+npm run build
+MCP_PORT=9090 MCP_HOST=0.0.0.0 npm run mcp
+```
+
+- Le serveur MCP expose les outils `create_note`, `list_notes`, `get_note`, `update_note`, `delete_note`, `export_notes`, `purge_notes`.
+- Dans ChatGPT → Settings → Connectors → Add new MCP connector : choisissez « Aucune authentification », pointez vers `wss://<votre-domaine>:<MCP_PORT>` (ou l’URL HTTPS tunnelisée) et fournissez à l’assistant le contexte `user_id` (via `{{user_id}}`) pour que chaque appel envoie le bon identifiant.
+- Pour un usage local, `npm run mcp` écoute par défaut sur `0.0.0.0:9090`. Utilisez un tunnel (Cloudflared/Ngrok) pour exposer le port si besoin.
