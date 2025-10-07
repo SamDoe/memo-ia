@@ -1,0 +1,314 @@
+openapi: 3.1.0
+info:
+  title: MemoIA API
+  version: 0.1.0
+  description: >
+    API REST minimaliste pour gérer les mémos texte depuis ChatGPT.
+servers:
+  - url: https://memo-ia-production.up.railway.app/
+    description: Remplacez par le domaine Railway en production.
+tags:
+  - name: health
+  - name: notes
+  - name: maintenance
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Vérifie l'état de l'API
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+  /v1/notes:
+    post:
+      tags: [notes]
+      summary: Crée un mémo
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ChatGPTUser'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNoteInput'
+      responses:
+        '201':
+          description: Note créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      tags: [notes]
+      summary: Liste ou recherche les mémos
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ChatGPTUser'
+        - in: query
+          name: query
+          schema:
+            type: string
+          description: Recherche texte (titre+contenu)
+        - in: query
+          name: tag
+          schema:
+            type: string
+          description: Filtre sur un tag exact
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+          description: Nombre max de résultats (défaut 50)
+      responses:
+        '200':
+          description: Liste des notes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Note'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/notes/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [notes]
+      summary: Récupère un mémo
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ChatGPTUser'
+      responses:
+        '200':
+          description: Note trouvée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [notes]
+      summary: Met à jour un mémo
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ChatGPTUser'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNoteInput'
+      responses:
+        '200':
+          description: Note mise à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [notes]
+      summary: Supprime un mémo
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ChatGPTUser'
+      responses:
+        '204':
+          description: Note supprimée
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/export:
+    post:
+      tags: [notes]
+      summary: Exporte les mémos d'un utilisateur
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ChatGPTUser'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format:
+                  type: string
+                  enum: [json, csv]
+                  default: json
+      responses:
+        '200':
+          description: Données exportées
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Note'
+            text/csv:
+              schema:
+                type: string
+                description: Flux CSV
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/purge:
+    post:
+      tags: [maintenance]
+      summary: Supprime toutes les notes de l'utilisateur
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ChatGPTUser'
+      responses:
+        '200':
+          description: Résultat de la purge
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  purged:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ChatGPTUser:
+      in: header
+      name: X-ChatGPT-User
+      required: true
+      schema:
+        type: string
+      description: Identifiant utilisateur fourni par ChatGPT
+  schemas:
+    Note:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+          nullable: true
+        content:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        remind_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    NoteResponse:
+      type: object
+      properties:
+        note:
+          $ref: '#/components/schemas/Note'
+    CreateNoteInput:
+      type: object
+      required: [content]
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        remind_at:
+          type: string
+          format: date-time
+    UpdateNoteInput:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        content:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        remind_at:
+          type: string
+          format: date-time
+          nullable: true
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+  responses:
+    BadRequest:
+      description: Requête invalide
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentification requise ou invalide
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Ressource introuvable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
