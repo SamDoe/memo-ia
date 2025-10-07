@@ -1,6 +1,10 @@
 import Database from 'better-sqlite3';
+import fs from 'node:fs';
+import path from 'node:path';
 import { config } from './config.js';
-const db = new Database(config.dbUrl);
+const dbPath = resolveDbPath(config.dbUrl);
+ensureDirectory(dbPath);
+const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 const init = () => {
     db.exec(`
@@ -25,3 +29,24 @@ const init = () => {
 };
 init();
 export default db;
+function resolveDbPath(url) {
+    if (!url)
+        return ':memory:';
+    if (url.startsWith(':memory:'))
+        return ':memory:';
+    if (url.startsWith('file:')) {
+        try {
+            return new URL(url).pathname;
+        }
+        catch {
+            return url;
+        }
+    }
+    return url;
+}
+function ensureDirectory(filePath) {
+    if (!filePath || filePath === ':memory:')
+        return;
+    const dir = path.dirname(path.isAbsolute(filePath) ? filePath : path.resolve(filePath));
+    fs.mkdirSync(dir, { recursive: true });
+}
